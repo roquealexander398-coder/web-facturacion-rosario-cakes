@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load currency_tags %}
+
+{% block title %}Cierre de turno{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-cash-register"></i> Resumen de cierre de turno</h2>
+            <p class="text-muted mb-0">{{ date|date:'d/m/Y' }} · Cajero: {{ cashier }}</p>
+        </div>
+        <div>
+            {% csrf_token %}
+            <button class="btn btn-primary" onclick="printAndResetShift()"><i class="fas fa-print"></i> Imprimir</button>
+            <a href="{% url 'sales:list' %}" class="btn btn-outline-secondary">Volver</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted">Ventas del turno</h6>
+                    <h3 class="mb-0">{{ total_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted">Total vendido</h6>
+                    <h3 class="mb-0">{{ total_sales|currency_format }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted">Efectivo</h6>
+                    <h3 class="mb-0">{{ cash_total|currency_format }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="mb-3">Detalle de ventas</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Factura</th>
+                            <th>Cliente</th>
+                            <th>Hora</th>
+                            <th>Método</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                        <tr>
+                            <td>{{ sale.invoice_number }}</td>
+                            <td>{{ sale.client.name }}</td>
+                            <td>{{ sale.date|date:'H:i' }}</td>
+                            <td>{{ sale.get_payment_method_display }}</td>
+                            <td>{{ sale.total|currency_format }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">No hay ventas registradas en este turno.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function printAndResetShift() {
+    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
+    fetch('{% url "sales:shift-close-print" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `csrfmiddlewaretoken=${encodeURIComponent(csrfToken)}`
+    }).finally(() => {
+        window.print();
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ action }} Proveedor{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="fas fa-truck"></i> {{ action }} Proveedor</h2>
+    <hr>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="mb-3">
+            <label class="form-label">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> Guardar</button>
+        <a href="{% url 'providers:list' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,348 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Configuración de Empresa{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h2><i class="fas fa-cogs"></i> Configuración de Empresa</h2>
+    <hr>
+    
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <ul class="nav nav-tabs" id="configTabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" id="general-tab" data-bs-toggle="tab" href="#general" role="tab">
+                    <i class="fas fa-building"></i> General
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="billing-tab" data-bs-toggle="tab" href="#billing" role="tab">
+                    <i class="fas fa-file-invoice"></i> Facturación
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="tax-tab" data-bs-toggle="tab" href="#tax" role="tab">
+                    <i class="fas fa-percent"></i> Impuestos
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="system-tab" data-bs-toggle="tab" href="#system" role="tab">
+                    <i class="fas fa-cog"></i> Sistema
+                </a>
+            </li>
+        </ul>
+        
+        <div class="tab-content mt-3">
+            <!-- Tab General -->
+            <div class="tab-pane fade show active" id="general" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.company_name.id_for_label }}" class="form-label">
+                                        {{ form.company_name.label }}
+                                    </label>
+                                    {{ form.company_name }}
+                                    {% if form.company_name.errors %}
+                                        <div class="text-danger">{{ form.company_name.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.commercial_name.id_for_label }}" class="form-label">
+                                        {{ form.commercial_name.label }}
+                                    </label>
+                                    {{ form.commercial_name }}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.rnc.id_for_label }}" class="form-label">
+                                        {{ form.rnc.label }}
+                                    </label>
+                                    {{ form.rnc }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.logo.id_for_label }}" class="form-label">
+                                        Logo para Reportes
+                                    </label>
+                                    {{ form.report_logo }}
+                                    {% if config.report_logo %}
+                                        <div class="mt-2">
+                                            <img src="{{ config.report_logo.url }}" alt="Logo" class="img-fluid" style="max-height: 100px;">
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.phone.id_for_label }}" class="form-label">
+                                        {{ form.phone.label }}
+                                    </label>
+                                    {{ form.phone }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.email.id_for_label }}" class="form-label">
+                                        {{ form.email.label }}
+                                    </label>
+                                    {{ form.email }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.website.id_for_label }}" class="form-label">
+                                        {{ form.website.label }}
+                                    </label>
+                                    {{ form.website }}
+                                    <div class="form-text">Puedes colocar aquí la URL de tu tienda o página web de ventas de pasteles para abrirla desde el sistema.</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.address.id_for_label }}" class="form-label">
+                                        {{ form.address.label }}
+                                    </label>
+                                    {{ form.address }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.city.id_for_label }}" class="form-label">
+                                        {{ form.city.label }}
+                                    </label>
+                                    {{ form.city }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.country.id_for_label }}" class="form-label">
+                                        {{ form.country.label }}
+                                    </label>
+                                    {{ form.country }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab Facturación -->
+            <div class="tab-pane fade" id="billing" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.invoice_prefix.id_for_label }}" class="form-label">
+                                        {{ form.invoice_prefix.label }}
+                                    </label>
+                                    {{ form.invoice_prefix }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.invoice_sequence_start.id_for_label }}" class="form-label">
+                                        {{ form.invoice_sequence_start.label }}
+                                    </label>
+                                    {{ form.invoice_sequence_start }}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Próximo Número</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="{{ config.next_invoice_number }}" disabled>
+                                        <button type="button" class="btn btn-warning" id="resetSequence">
+                                            <i class="fas fa-undo"></i> Resetear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.currency.id_for_label }}" class="form-label">
+                                        {{ form.currency.label }}
+                                    </label>
+                                    {{ form.currency }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.currency_symbol.id_for_label }}" class="form-label">
+                                        {{ form.currency_symbol.label }}
+                                    </label>
+                                    {{ form.currency_symbol }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab Impuestos -->
+            <div class="tab-pane fade" id="tax" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.tax_rate.id_for_label }}" class="form-label">
+                                        {{ form.tax_rate.label }} (%)
+                                    </label>
+                                    {{ form.tax_rate }}
+                                    <div class="form-text">Tasa de impuesto aplicada a todas las ventas</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab Sistema -->
+            <div class="tab-pane fade" id="system" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.timezone.id_for_label }}" class="form-label">
+                                        {{ form.timezone.label }}
+                                    </label>
+                                    {{ form.timezone }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.date_format.id_for_label }}" class="form-label">
+                                        {{ form.date_format.label }}
+                                    </label>
+                                    {{ form.date_format }}
+                                    <div class="form-text">Ejemplo: %d/%m/%Y</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h5 class="mt-3">Alertas de Stock</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.low_stock_threshold.id_for_label }}" class="form-label">
+                                        {{ form.low_stock_threshold.label }}
+                                    </label>
+                                    {{ form.low_stock_threshold }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.low_stock_alert_email.id_for_label }}" class="form-label">
+                                        {{ form.low_stock_alert_email.label }}
+                                    </label>
+                                    {{ form.low_stock_alert_email }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h5 class="mt-3">Integraciones</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.api_key.id_for_label }}" class="form-label">
+                                        {{ form.api_key.label }}
+                                    </label>
+                                    <div class="input-group">
+                                        {{ form.api_key }}
+                                        <button type="button" class="btn btn-secondary" id="generateApiKey">
+                                            <i class="fas fa-sync"></i> Generar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.webhook_url.id_for_label }}" class="form-label">
+                                        {{ form.webhook_url.label }}
+                                    </label>
+                                    {{ form.webhook_url }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-save"></i> Guardar Configuración
+            </button>
+            <button type="reset" class="btn btn-secondary btn-lg">
+                <i class="fas fa-undo"></i> Restablecer
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Resetear secuencia de facturación
+    $('#resetSequence').click(function() {
+        if (confirm('¿Está seguro de resetear la secuencia de facturación?')) {
+            $.ajax({
+                url: '{% url "company:reset_sequence" %}',
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert(response.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + response.error);
+                    }
+                }
+            });
+        }
+    });
+    
+    // Generar API Key
+    $('#generateApiKey').click(function() {
+        const key = generateRandomString(32);
+        $('#id_api_key').val(key);
+    });
+    
+    function generateRandomString(length) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+});
+</script>
+{% endblock %}

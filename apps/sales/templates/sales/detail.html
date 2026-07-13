@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load currency_tags %}
+
+{% block title %}Factura {{ sale.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="fas fa-file-invoice"></i> Factura {{ sale.invoice_number }}</h2>
+        <div>
+            <a href="{% url 'sales:receipt' sale.id %}" class="btn btn-primary" target="_blank">
+                <i class="fas fa-print"></i> Imprimir
+            </a>
+            <a href="{% url 'sales:pdf' sale.id %}" class="btn btn-outline-secondary" target="_blank">
+                <i class="fas fa-file-pdf"></i> PDF
+            </a>
+        </div>
+    </div>
+    <hr>
+    <div class="row">
+        <div class="col-md-6">
+            <p><strong>Cliente:</strong> {{ sale.client.name }}</p>
+            <p><strong>Fecha:</strong> {{ sale.date|date:"d/m/Y H:i" }}</p>
+            <p><strong>Estado:</strong> <span class="badge bg-success">{{ sale.get_status_display }}</span></p>
+            <p><strong>Método de pago:</strong> {{ sale.get_payment_method_display }}</p>
+            <p><strong>Cajero:</strong> {{ sale.created_by.get_full_name|default:sale.created_by.username }}</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <p><strong>Subtotal:</strong> {{ sale.subtotal|currency_format }}</p>
+            <p><strong>Descuento:</strong> {{ sale.discount|currency_format }}</p>
+            <p><strong>Impuesto ({{ sale.tax_rate }}%):</strong> {{ sale.tax|currency_format }}</p>
+            <h4><strong>Total:</strong> {{ sale.total|currency_format }}</h4>
+        </div>
+    </div>
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Descuento</th><th>Total</th></tr>
+        </thead>
+        <tbody>
+            {% for detail in sale.details.all %}
+            <tr>
+                <td>{{ detail.product.name }}</td>
+                <td>{{ detail.quantity }}</td>
+                <td>{{ detail.price|currency_format }}</td>
+                <td>{{ detail.discount|currency_format }}</td>
+                <td>{{ detail.total|currency_format }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'sales:create' %}" class="btn btn-success"><i class="fas fa-plus"></i> Nueva Venta</a>
+    <a href="{% url 'sales:list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Volver</a>
+</div>
+{% endblock %}

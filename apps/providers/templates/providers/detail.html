@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ provider.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="fas fa-truck"></i> {{ provider.name }}</h2>
+    <hr>
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>RNC:</strong> {{ provider.rnc }}</p>
+            <p><strong>Tipo:</strong> {{ provider.get_provider_type_display }}</p>
+            <p><strong>Teléfono:</strong> {{ provider.phone }}</p>
+            <p><strong>Email:</strong> {{ provider.email|default:"—" }}</p>
+            <p><strong>Dirección:</strong> {{ provider.address|default:"—" }}</p>
+        </div>
+    </div>
+    <h4>Productos del proveedor</h4>
+    <table class="table table-striped">
+        <thead><tr><th>Producto</th><th>Precio</th><th>Preferido</th></tr></thead>
+        <tbody>
+            {% for pp in provider_products %}
+            <tr>
+                <td>{{ pp.product.name }}</td>
+                <td>${{ pp.price }}</td>
+                <td>{% if pp.is_preferred %}<i class="fas fa-star text-warning"></i>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center">Sin productos asociados</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{% url 'providers:edit' provider.id %}" class="btn btn-warning"><i class="fas fa-edit"></i> Editar</a>
+    <a href="{% url 'providers:list' %}" class="btn btn-secondary">Volver</a>
+</div>
+{% endblock %}

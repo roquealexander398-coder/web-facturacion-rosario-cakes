@@ -1,0 +1,302 @@
+{% load currency_tags %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura {{ sale.invoice_number }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #f0f0f0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .print-toolbar {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .receipt {
+            background: #fff;
+            margin: 0 auto 30px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        body.format-ticket .receipt {
+            max-width: 80mm;
+            font-size: 12px;
+            padding: 10px;
+        }
+
+        body.format-carta .receipt {
+            max-width: 210mm;
+            font-size: 14px;
+            padding: 25px;
+        }
+
+        .receipt-header {
+            text-align: center;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .receipt-header h1 {
+            font-size: 1.4em;
+            margin: 0;
+            font-weight: bold;
+        }
+
+        .receipt-info p {
+            margin: 2px 0;
+        }
+
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+
+        .receipt-table th,
+        .receipt-table td {
+            padding: 4px 2px;
+            text-align: left;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .receipt-table th {
+            border-bottom: 1px solid #333;
+            font-size: 0.85em;
+        }
+
+        .receipt-table .text-right {
+            text-align: right;
+        }
+
+        .receipt-totals {
+            border-top: 2px dashed #333;
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+
+        .receipt-totals .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+
+        .receipt-totals .grand-total {
+            font-size: 1.3em;
+            font-weight: bold;
+            border-top: 1px solid #333;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px dashed #333;
+            font-size: 0.9em;
+        }
+
+        .printer-help {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .receipt {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            body.format-ticket .receipt {
+                width: 80mm;
+            }
+
+            body.format-carta .receipt {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            body.format-ticket {
+                width: 80mm;
+            }
+        }
+
+        @page {
+            margin: 3mm;
+        }
+
+        body.format-ticket {
+            width: 80mm;
+        }
+    </style>
+</head>
+<body class="format-{{ format }}">
+
+    <div class="print-toolbar no-print">
+        <h5 class="text-center mb-3"><i class="fas fa-print"></i> Imprimir Factura</h5>
+
+        <div class="mb-3">
+            <label class="form-label">Formato de impresión</label>
+            <select id="printFormat" class="form-select form-select-sm">
+                <option value="ticket" {% if format == 'ticket' %}selected{% endif %}>Ticket (80mm - impresora térmica)</option>
+                <option value="carta" {% if format == 'carta' %}selected{% endif %}>Carta / A4 (impresora normal)</option>
+            </select>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="button" class="btn btn-primary" id="btnPrint">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <a href="{% url 'sales:pdf' sale.id %}" class="btn btn-outline-secondary" target="_blank">
+                <i class="fas fa-file-pdf"></i> Descargar PDF
+            </a>
+            <a href="{% url 'sales:create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Nueva Venta
+            </a>
+            <a href="{% url 'sales:list' %}" class="btn btn-outline-dark">
+                <i class="fas fa-list"></i> Lista de Ventas
+            </a>
+        </div>
+
+        <div class="printer-help">
+            <strong><i class="fas fa-info-circle"></i> Conectar impresora:</strong>
+            <ol class="mb-0 mt-1 ps-3">
+                <li>Conecta tu impresora (USB, red o Bluetooth) e instálala en Windows.</li>
+                <li>Pulsa <strong>Imprimir</strong> y selecciónala en el diálogo del navegador.</li>
+                <li>Para tickets térmicos, usa el formato <strong>Ticket (80mm)</strong>.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="receipt" id="receiptContent">
+        <div class="receipt-header">
+            {% if company.report_logo %}
+            <img src="{{ company.report_logo.url }}" alt="Logo" style="max-height: 50px; margin-bottom: 5px;">
+            {% endif %}
+            <h1>Facturación ROSARIO CAKES</h1>
+            {% if company.commercial_name %}
+            <p class="mb-0">{{ company.commercial_name }}</p>
+            {% endif %}
+            <p class="mb-0">RNC: {{ company.rnc }}</p>
+            <p class="mb-0">+1 (849) 785-4475</p>
+            <p class="mb-0">{{ company.address }}</p>
+        </div>
+
+        <div class="receipt-info">
+            <p><strong>FACTURA:</strong> {{ sale.invoice_number }}</p>
+            <p><strong>FECHA:</strong> {{ sale.date|date:"d/m/Y H:i" }}</p>
+            <p><strong>CLIENTE:</strong> {{ sale.client.name }}</p>
+            <p><strong>ID:</strong> {{ sale.client.identification }}</p>
+            <p><strong>PAGO:</strong> {{ sale.get_payment_method_display }}</p>
+            <p><strong>CAJERO:</strong> {{ sale.created_by.get_full_name|default:sale.created_by.username }}</p>
+        </div>
+
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th>Cant</th>
+                    <th>Producto</th>
+                    <th class="text-right">Precio</th>
+                    <th class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detail in sale.details.all %}
+                <tr>
+                    <td>{{ detail.quantity }}</td>
+                    <td>{{ detail.product.name }}</td>
+                    <td class="text-right">{{ detail.price|currency_format }}</td>
+                    <td class="text-right">{{ detail.total|currency_format }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="receipt-totals">
+            <div class="total-row">
+                <span>Subtotal:</span>
+                <span>{{ sale.subtotal|currency_format }}</span>
+            </div>
+            {% if sale.discount > 0 %}
+            <div class="total-row">
+                <span>Descuento:</span>
+                <span>-{{ sale.discount|currency_format }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row">
+                <span>ITBIS ({{ sale.tax_rate }}%):</span>
+                <span>{{ sale.tax|currency_format }}</span>
+            </div>
+            <div class="total-row grand-total">
+                <span>TOTAL:</span>
+                <span>{{ sale.total|currency_format }}</span>
+            </div>
+        </div>
+
+        <div class="receipt-footer">
+            {% if company.footer_text %}
+            <p>{{ company.footer_text }}</p>
+            {% else %}
+            <p>¡Gracias por su compra!</p>
+            {% endif %}
+            <p class="mb-0"><small>{{ sale.get_status_display }} | {{ sale.invoice_number }}</small></p>
+        </div>
+    </div>
+
+    <script>
+        const formatSelect = document.getElementById('printFormat');
+        const autoPrint = {{ auto_print|yesno:"true,false" }};
+
+        function applyFormat(format) {
+            document.body.className = 'format-' + format;
+            localStorage.setItem('sale_print_format', format);
+        }
+
+        formatSelect.addEventListener('change', function() {
+            applyFormat(this.value);
+        });
+
+        const savedFormat = localStorage.getItem('sale_print_format');
+        if (savedFormat) {
+            formatSelect.value = savedFormat;
+            applyFormat(savedFormat);
+        }
+
+        document.getElementById('btnPrint').addEventListener('click', function() {
+            window.print();
+        });
+
+        if (autoPrint) {
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    window.print();
+                }, 500);
+            });
+        }
+    </script>
+</body>
+</html>
