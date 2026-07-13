@@ -14,7 +14,32 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-key-for-dev')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,192.168.1.18,192.168.56.1').split(',')
+# ALLOWED_HOSTS - soporte para Render y desarrollo local
+ALLOWED_HOSTS_STR = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0,192.168.1.18,192.168.56.1')
+ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_STR.split(',') if host.strip()]
+
+# Agregar hosts dinámicos de Render
+if not DEBUG:
+    if 'RENDER_EXTERNAL_HOSTNAME' in os.environ:
+        ALLOWED_HOSTS.append(os.environ['RENDER_EXTERNAL_HOSTNAME'])
+
+# Security Settings para Producción
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_SECURITY_POLICY = {
+        'default-src': ("'self'",),
+        'script-src': ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com"),
+        'style-src': ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com"),
+        'img-src': ("'self'", "data:", "https:"),
+        'font-src': ("'self'", "cdnjs.cloudflare.com", "data:"),
+    }
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    X_FRAME_OPTIONS = 'DENY'
 
 # Application definition
 INSTALLED_APPS = [
@@ -46,6 +71,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise para servir archivos estáticos en producción
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -59,6 +85,10 @@ if DEBUG:
     INSTALLED_APPS += ['debug_toolbar']
     MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']
     INTERNAL_IPS = ['127.0.0.1', 'localhost']
+else:
+    # En producción, remover debug_toolbar
+    if 'debug_toolbar' in INSTALLED_APPS:
+        INSTALLED_APPS.remove('debug_toolbar')
 
 ROOT_URLCONF = 'facturacion.urls'
 
@@ -133,8 +163,14 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# WhiteNoise storage para compresión y cachés en producción
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+else:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -182,21 +218,43 @@ SIMPLE_JWT = {
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:8000",
-]
+if DEBUG:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ]
+else:
+    # En producción, permitir solo dominios específicos
+    CORS_ALLOWED_ORIGINS = [
+        f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME', 'localhost')}",
+    ]
 
-# Celery Configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = []
+if not DEBUG:
+    if 'RENDER_EXTERNAL_HOSTNAME' in os.environ:
+        CSRF_TRUSTED_ORIGINS = [
+            f"https://{os.environ['RENDER_EXTERNAL_HOSTNAME']}",
+        ]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
+# Celery Configuration (opcional, solo en desarrollo o con Redis disponible)
+if not DEBUG or os.getenv('CELERY_BROKER_URL'):
+    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+    CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    CELERY_ACCEPT_CONTENT = ['json']
+    CELERY_TASK_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'json'
 
 # Logging Configuration
 LOGS_DIR = BASE_DIR / 'logs'
-LOGS_DIR.mkdir(exist_ok=True)
+if DEBUG:
+    LOGS_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
     'version': 1,
@@ -208,30 +266,39 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs' / 'audit.log',
-            'formatter': 'verbose',
-        },
         'console': {
-            'level': 'DEBUG',
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
     },
     'loggers': {
-        'apps.audit': {
-            'handlers': ['file', 'console'],
+        'django': {
+            'handlers': ['console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
+        },
+        'apps.audit': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }
+
+# En desarrollo, agregar log a archivo
+if DEBUG:
+    LOGGING['handlers']['file'] = {
+        'level': 'INFO',
+        'class': 'logging.FileHandler',
+        'filename': LOGS_DIR / 'audit.log',
+        'formatter': 'verbose',
+    }
+    LOGGING['loggers']['apps.audit']['handlers'].append('file')
 
 # Company settings (default values)
 COMPANY_NAME = 'ROSARIO CAKES'
 COMPANY_RNC = '123456789'
 COMPANY_PHONE = '809-555-5555'
-COMPANY_EMAIL = 'info@miempresa.com'
-COMPANY_ADDRESS = 'Calle Principal #123, Santo Domingo'
+COMPANY_EMAIL = 'rosariocakes6@gmail.com'
+COMPANY_ADDRESS = 'Respaldo 4ta, SDE, Santo Domingo, República Dominicana'
