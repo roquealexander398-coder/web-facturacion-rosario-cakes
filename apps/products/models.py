@@ -2,102 +2,71 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 
-class Category(models.Model):
-    """Modelo de categorías de productos"""
-    name = models.CharField(max_length=100, unique=True, verbose_name=_('Nombre'))
-    description = models.TextField(blank=True, verbose_name=_('Descripción'))
-    parent = models.ForeignKey(
-        'self',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='subcategories',
-        verbose_name=_('Categoría Padre')
-    )
-    is_active = models.BooleanField(default=True, verbose_name=_('Activa'))
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'categories'
-        ordering = ['name']
-        verbose_name = _('Categoría')
-        verbose_name_plural = _('Categorías')
-    
-    def __str__(self):
-        return self.name
-    
-    @property
-    def full_name(self):
-        if self.parent:
-            return f"{self.parent.name} > {self.name}"
-        return self.name
 
 class Product(models.Model):
-    """Modelo de productos"""
+    """Modelo de productos/pasteles - Mapea a tabla pasteles en MySQL"""
     
-    class Unit(models.TextChoices):
-        UNIT = 'UNIT', _('Unidad')
-        KG = 'KG', _('Kilogramo')
-        LB = 'LB', _('Libra')
-        L = 'L', _('Litro')
-        ML = 'ML', _('Mililitro')
-        M = 'M', _('Metro')
-        CM = 'CM', _('Centímetro')
+    CATEGORY_CHOICES = [
+        ('Cumpleaños', _('Cumpleaños')),
+        ('Boda', _('Boda')),
+        ('Celebración', _('Celebración')),
+        ('Infantil', _('Infantil')),
+        ('Personalizado', _('Personalizado')),
+        ('Postres', _('Postres')),
+    ]
     
-    code = models.CharField(max_length=50, unique=True, verbose_name=_('Código'))
-    name = models.CharField(max_length=200, verbose_name=_('Nombre'))
-    description = models.TextField(blank=True, verbose_name=_('Descripción'))
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.CASCADE,
-        related_name='products',
-        verbose_name=_('Categoría')
-    )
-    unit = models.CharField(
-        max_length=10,
-        choices=Unit.choices,
-        default=Unit.UNIT,
-        verbose_name=_('Unidad de Medida')
-    )
-    price = models.DecimalField(
+    id_pastel = models.AutoField(primary_key=True, db_column='id_pastel')
+    nombre = models.CharField(max_length=100, db_column='nombre')
+    descripcion = models.CharField(max_length=255, blank=True, null=True, db_column='descripcion')
+    precio_base = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        verbose_name=_('Precio de Venta')
+        db_column='precio_base'
     )
-    cost = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-        verbose_name=_('Costo')
+    categoria = models.CharField(
+        max_length=50,
+        choices=CATEGORY_CHOICES,
+        blank=True,
+        db_column='categoria'
     )
-    stock = models.PositiveIntegerField(default=0, verbose_name=_('Stock Actual'))
-    min_stock = models.PositiveIntegerField(default=5, verbose_name=_('Stock Mínimo'))
-    max_stock = models.PositiveIntegerField(default=100, verbose_name=_('Stock Máximo'))
-    is_active = models.BooleanField(default=True, verbose_name=_('Activo'))
-    image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name=_('Imagen'))
+    disponible = models.BooleanField(default=True, db_column='disponible')
+    imagen = models.ImageField(
+        upload_to='products/',
+        blank=True,
+        null=True,
+        db_column='imagen'
+    )
+    fecha_actualizacion = models.DateTimeField(auto_now=True, db_column='fecha_actualizacion')
+    
+    # Campos adicionales para compatibilidad
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        'accounts.User',
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='products_created'
-    )
     
     class Meta:
-        db_table = 'products'
-        ordering = ['name']
-        verbose_name = _('Producto')
-        verbose_name_plural = _('Productos')
+        db_table = 'pasteles'
+        ordering = ['nombre']
+        verbose_name = _('Pastel/Producto')
+        verbose_name_plural = _('Pasteles/Productos')
+        managed = False  # No crear/eliminar tabla
     
     def __str__(self):
-        return f"{self.code} - {self.name}"
+        return f"{self.nombre} (${self.precio_base})"
     
     @property
-    def is_low_stock(self):
-        return self.stock <= self.min_stock
+    def name(self):
+        """Compatibilidad con modelos antiguos"""
+        return self.nombre
+    
+    @property
+    def price(self):
+        """Compatibilidad con modelos antiguos"""
+        return self.precio_base
+    
+    def get_categoria_display(self):
+        return dict(self.CATEGORY_CHOICES).get(self.categoria, self.categoria)
+
     
     @property
     def is_out_of_stock(self):

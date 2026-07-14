@@ -12,11 +12,11 @@ from .serializers import ClientSerializer
 
 @login_required
 def client_list(request):
-    clients = Client.objects.filter(is_active=True)
+    clients = Client.objects.all()
     search = request.GET.get('search')
     if search:
         clients = clients.filter(
-            Q(name__icontains=search) | Q(identification__icontains=search)
+            Q(nombre__icontains=search) | Q(email__icontains=search)
         )
     return render(request, 'clients/list.html', {'clients': clients})
 
@@ -25,19 +25,17 @@ def client_list(request):
 def client_create(request):
     form = ClientForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
-        client = form.save(commit=False)
-        client.created_by = request.user
-        client.save()
+        client = form.save()
         AuditLog.objects.create(
             user=request.user,
             action='CREATE',
             model_name='Client',
-            record_id=client.id,
-            data_after={'name': client.name, 'identification': client.identification},
+            record_id=client.id_cliente,
+            data_after={'nombre': client.nombre, 'email': client.email},
             ip_address=request.META.get('REMOTE_ADDR'),
             user_agent=request.META.get('HTTP_USER_AGENT', '')[:255],
         )
-        return redirect('clients:detail', pk=client.id)
+        return redirect('clients:detail', pk=client.id_cliente)
     return render(request, 'clients/form.html', {'form': form, 'action': 'Crear'})
 
 
@@ -53,7 +51,7 @@ def client_edit(request, pk):
     form = ClientForm(request.POST or None, instance=client)
     if request.method == 'POST' and form.is_valid():
         form.save()
-        return redirect('clients:detail', pk=client.id)
+        return redirect('clients:detail', pk=client.id_cliente)
     return render(request, 'clients/form.html', {'form': form, 'action': 'Editar', 'client': client})
 
 
@@ -61,21 +59,21 @@ def client_edit(request, pk):
 def client_delete(request, pk):
     client = get_object_or_404(Client, pk=pk)
     if request.method == 'POST':
-        client.is_active = False
-        client.save()
+        client.delete()
         return redirect('clients:list')
     return render(request, 'clients/confirm_delete.html', {'client': client})
 
 
 class ClientViewSet(viewsets.ModelViewSet):
-    queryset = Client.objects.filter(is_active=True)
+    queryset = Client.objects.all()
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['name', 'identification', 'email', 'phone']
-    filterset_fields = ['client_type', 'is_active']
-    ordering_fields = ['name', 'created_at']
-    ordering = ['name']
+    search_fields = ['nombre', 'email', 'telefono']
+    filterset_fields = ['tipo_pago']
+    ordering_fields = ['nombre', 'fecha_registro']
+    ordering = ['nombre']
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        serializer.save()
+
