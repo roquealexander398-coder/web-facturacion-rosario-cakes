@@ -7,14 +7,15 @@ class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
         fields = (
-            'nombre', 'tipo_pago', 'email',
-            'telefono', 'direccion'
+            'name', 'client_type', 'identification', 'email',
+            'phone', 'address', 'is_active'
         )
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'tipo_pago': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'client_type': forms.Select(attrs={'class': 'form-select'}),
+            'identification': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
-            'direccion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
-

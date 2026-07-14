@@ -3,183 +3,170 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 
-
 class Sale(models.Model):
-    """Modelo de pedidos/ventas - Mapea a tabla pedidos en MySQL"""
+    """Modelo de ventas/facturación"""
     
-    ORDER_STATUS_CHOICES = [
-        ('Pendiente', _('Pendiente')),
-        ('En Preparación', _('En Preparación')),
-        ('Listo', _('Listo')),
-        ('Entregado', _('Entregado')),
-        ('Cancelado', _('Cancelado')),
-    ]
+    class Status(models.TextChoices):
+        PENDING = 'PENDING', _('Pendiente')
+        PAID = 'PAID', _('Pagada')
+        CANCELLED = 'CANCELLED', _('Cancelada')
+        REFUNDED = 'REFUNDED', _('Reembolsada')
     
-    SIZE_CHOICES = [
-        ('Pequeño', _('Pequeño')),
-        ('Mediano', _('Mediano')),
-        ('Grande', _('Grande')),
-        ('Extra Grande', _('Extra Grande')),
-    ]
+    class PaymentMethod(models.TextChoices):
+        CASH = 'CASH', _('Efectivo')
+        CARD = 'CARD', _('Tarjeta')
+        TRANSFER = 'TRANSFER', _('Transferencia')
+        CHECK = 'CHECK', _('Cheque')
+        ONLINE = 'ONLINE', _('Pago en Línea')
     
-    id_pedido = models.AutoField(primary_key=True, db_column='id_pedido')
-    id_cliente = models.ForeignKey(
+    invoice_number = models.CharField(max_length=20, unique=True, verbose_name=_('Número de Factura'))
+    client = models.ForeignKey(
         'clients.Client',
         on_delete=models.PROTECT,
-        db_column='id_cliente',
-        related_name='pedidos'
+        related_name='sales',
+        verbose_name=_('Cliente')
     )
-    id_pastel = models.ForeignKey(
-        'products.Product',
+    date = models.DateTimeField(auto_now_add=True, verbose_name=_('Fecha'))
+    subtotal = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name=_('Subtotal')
+    )
+    discount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name=_('Descuento')
+    )
+    tax = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name=_('Impuesto')
+    )
+    tax_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=18.00,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name=_('Tasa de Impuesto')
+    )
+    total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name=_('Total')
+    )
+    payment_method = models.CharField(
+        max_length=10,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CASH,
+        verbose_name=_('Método de Pago')
+    )
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+        verbose_name=_('Estado')
+    )
+    notes = models.TextField(blank=True, verbose_name=_('Observaciones'))
+    created_by = models.ForeignKey(
+        'accounts.User',
         on_delete=models.PROTECT,
-        db_column='id_pastel',
-        related_name='pedidos'
+        related_name='sales_created',
+        verbose_name=_('Creado por')
     )
-    cantidad = models.PositiveIntegerField(
-        default=1,
-        validators=[MinValueValidator(1)],
-        db_column='cantidad'
-    )
-    tamaño = models.CharField(
-        max_length=20,
-        choices=SIZE_CHOICES,
-        default='Mediano',
-        db_column='tamaño'
-    )
-    fecha_pedido = models.DateTimeField(db_column='fecha_pedido')
-    fecha_entrega = models.DateTimeField(db_column='fecha_entrega')
-    observaciones = models.TextField(blank=True, null=True, db_column='observaciones')
-    estado = models.CharField(
-        max_length=20,
-        choices=ORDER_STATUS_CHOICES,
-        default='Pendiente',
-        db_column='estado'
-    )
-    
-    # Campos adicionales para compatibilidad
+    shift_number = models.PositiveIntegerField(default=1, verbose_name=_('Número de turno'))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'pedidos'
-        ordering = ['-fecha_pedido']
-        verbose_name = _('Pedido')
-        verbose_name_plural = _('Pedidos')
-        managed = False  # No crear/eliminar tabla
+        db_table = 'sales'
+        ordering = ['-date']
+        verbose_name = _('Venta')
+        verbose_name_plural = _('Ventas')
     
     def __str__(self):
-        return f"Pedido {self.id_pedido} - {self.id_cliente.nombre}"
+        return f"{self.invoice_number} - {self.client.name}"
     
-    def get_estado_display(self):
-        return dict(self.ORDER_STATUS_CHOICES).get(self.estado, self.estado)
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            self.invoice_number = self.generate_invoice_number()
+        super().save(*args, **kwargs)
     
-    def get_tamaño_display(self):
-        return dict(self.SIZE_CHOICES).get(self.tamaño, self.tamaño)
+    def generate_invoice_number(self):
+        """Generar número de factura secuencial"""
+        from django.utils import timezone
+        year = timezone.now().strftime('%Y')
+        month = timezone.now().strftime('%m')
+        last_sale = Sale.objects.filter(
+            created_at__year=timezone.now().year,
+            created_at__month=timezone.now().month
+        ).order_by('-created_at').first()
+        
+        if last_sale:
+            number = int(last_sale.invoice_number.split('-')[-1]) + 1
+        else:
+            number = 1
+        
+        return f"FAC-{year}{month}-{str(number).zfill(4)}"
     
-    @property
-    def total_price(self):
-        """Calcular el precio total del pedido"""
-        return self.id_pastel.precio_base * self.cantidad
+    def calculate_totals(self):
+        """Calcular subtotal, impuesto y total"""
+        self.subtotal = sum(detail.total for detail in self.details.all())
+        self.tax = self.subtotal * (self.tax_rate / 100)
+        self.total = self.subtotal + self.tax - self.discount
+        return self.total
 
-
-class Payment(models.Model):
-    """Modelo de pagos - Mapea a tabla pagos en MySQL"""
-    
-    PAYMENT_METHOD_CHOICES = [
-        ('Efectivo', _('Efectivo')),
-        ('Tarjeta', _('Tarjeta')),
-        ('Transferencia', _('Transferencia')),
-        ('Crédito', _('Crédito')),
-    ]
-    
-    STATUS_CHOICES = [
-        ('Pendiente', _('Pendiente')),
-        ('Completado', _('Completado')),
-        ('Cancelado', _('Cancelado')),
-    ]
-    
-    id_pago = models.AutoField(primary_key=True, db_column='id_pago')
-    id_pedido = models.ForeignKey(
+class SaleDetail(models.Model):
+    """Modelo de detalles de venta"""
+    sale = models.ForeignKey(
         Sale,
         on_delete=models.CASCADE,
-        db_column='id_pedido',
-        related_name='pagos'
+        related_name='details',
+        verbose_name=_('Venta')
     )
-    monto = models.DecimalField(
+    product = models.ForeignKey(
+        'products.Product',
+        on_delete=models.PROTECT,
+        related_name='sale_details',
+        verbose_name=_('Producto')
+    )
+    quantity = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name=_('Cantidad')
+    )
+    price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        db_column='monto'
+        verbose_name=_('Precio Unitario')
     )
-    metodo = models.CharField(
-        max_length=20,
-        choices=PAYMENT_METHOD_CHOICES,
-        db_column='metodo'
+    discount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name=_('Descuento')
     )
-    estado = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='Completado',
-        db_column='estado'
-    )
-    fecha_pago = models.DateTimeField(auto_now_add=True, db_column='fecha_pago')
-    
-    class Meta:
-        db_table = 'pagos'
-        ordering = ['-fecha_pago']
-        verbose_name = _('Pago')
-        verbose_name_plural = _('Pagos')
-        managed = False  # No crear/eliminar tabla
-    
-    def __str__(self):
-        return f"Pago {self.id_pago} - ${self.monto}"
-    
-    def get_metodo_display(self):
-        return dict(self.PAYMENT_METHOD_CHOICES).get(self.metodo, self.metodo)
-    
-    def get_estado_display(self):
-        return dict(self.STATUS_CHOICES).get(self.estado, self.estado)
-
-
-class Invoice(models.Model):
-    """Modelo de facturas - Mapea a tabla facturas en MySQL"""
-    
-    INVOICE_STATUS_CHOICES = [
-        ('Válida', _('Válida')),
-        ('Anulada', _('Anulada')),
-    ]
-    
-    id_factura = models.AutoField(primary_key=True, db_column='id_factura')
-    id_pedido = models.ForeignKey(
-        Sale,
-        on_delete=models.CASCADE,
-        db_column='id_pedido',
-        related_name='facturas'
-    )
-    ncf = models.CharField(max_length=20, unique=True, db_column='ncf')
-    monto_total = models.DecimalField(
+    total = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        db_column='monto_total'
-    )
-    fecha_emision = models.DateTimeField(auto_now_add=True, db_column='fecha_emision')
-    estado = models.CharField(
-        max_length=20,
-        choices=INVOICE_STATUS_CHOICES,
-        default='Válida',
-        db_column='estado'
+        verbose_name=_('Total')
     )
     
     class Meta:
-        db_table = 'facturas'
-        ordering = ['-fecha_emision']
-        verbose_name = _('Factura')
-        verbose_name_plural = _('Facturas')
-        managed = False  # No crear/eliminar tabla
+        db_table = 'sale_details'
+        verbose_name = _('Detalle de Venta')
+        verbose_name_plural = _('Detalles de Venta')
     
     def __str__(self):
-        return f"Factura {self.ncf} - ${self.monto_total}"
+        return f"{self.sale.invoice_number} - {self.product.name}"
     
-    def get_estado_display(self):
-        return dict(self.INVOICE_STATUS_CHOICES).get(self.estado, self.estado)
+    def save(self, *args, **kwargs):
+        self.total = (self.price * self.quantity) - self.discount
+        super().save(*args, **kwargs)

@@ -5,9 +5,6 @@ from .models import Client
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'tipo_pago', 'telefono', 'email', 'fecha_registro')
-    list_filter = ('tipo_pago', 'fecha_registro')
-    search_fields = ('nombre', 'email', 'telefono')
-    fields = ('nombre', 'tipo_pago', 'telefono', 'direccion', 'email', 'fecha_registro')
-    readonly_fields = ('id_cliente', 'fecha_registro')
-
+    list_display = ('name', 'identification', 'client_type', 'phone', 'is_active')
+    list_filter = ('client_type', 'is_active')
+    search_fields = ('name', 'identification', 'email')
